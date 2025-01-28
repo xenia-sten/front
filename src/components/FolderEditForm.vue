@@ -1,34 +1,28 @@
 <template>
   <form @submit.prevent>
-    <h4>Создание папки</h4>
+    <h4>Редактирование папки</h4>
     <input v-model="folder.name" type="text" placeholder="Название" />
     <button
       style="align-self: flex-end; margin-top: 15px"
-      @click="createFolder"
+      @click="editFolder"
     >
-      Создать
+      Сохранить
     </button>
   </form>
 </template>
 
 <script>
 export default {
-  data() {
-    return {
-      folder: {
-        name: "",
-        parent: null,
-      },
-    };
+  props: {
+    folder: {
+      type: Object,
+      required: true,
+    },
   },
 
   methods: {
-    createFolder() {
-      this.$emit("create", this.folder);
-      this.folder = {
-        name: "",
-        parent: null,
-      };
+    editFolder() {
+      this.$emit("edit", this.folder);
     },
   },
 };

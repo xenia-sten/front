@@ -24,7 +24,7 @@ const routes = [
     path: "/notes",
     name: "notes",
     component: NotesPage,
-    // meta: { requiresAuth: true },
+    meta: { requiresAuth: true },
   },
 ];
 

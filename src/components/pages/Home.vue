@@ -57,6 +57,7 @@ export default {
 
         // 4. Поместить результат в поле content объекта
         this.noteObject.content = zipContent;
+        console.log(typeof zipContent)
 
         console.log(
           "Заметка успешно упакована в архив:",

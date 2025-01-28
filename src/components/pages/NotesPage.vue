@@ -12,14 +12,27 @@
           <my-dialog v-model:show="visibleCreateFolder">
             <folder-create-form @create="createFolder" />
           </my-dialog>
+
           <ul class="" v-if="folders.length > 0">
             <li
               class="folderItem"
               :class="{ active: folder.id == currentFolderId }"
               v-for="folder in folders"
               :key="folder.id"
-              @click="setActiveFolder(folder, folder.id)"
+              @click.stop="setActiveFolder(folder, folder.id)"
             >
+              <my-dialog v-model:show="visibleEditFolder">
+                <folder-edit-form
+                  :folder="currentEditFolder"
+                  @edit="editFolder"
+                />
+              </my-dialog>
+              <my-dialog v-model:show="visibleCreateNote">
+                <note-create-form
+                  :folder="currentEditFolder"
+                  @create="createNote"
+                />
+              </my-dialog>
               <div class="d-flex flex-column" style="width: 100%">
                 <div class="d-flex flex-row justify-content-between">
                   {{ folder.name }}
@@ -27,12 +40,12 @@
                     <button
                       class="mdi mdi-plus"
                       title="Добавить заметку"
-                      @click.stop="addNote(folder)"
+                      @click="showDialogCreateNote(folder)"
                     ></button>
                     <button
                       class="mdi mdi-pencil"
                       title="Редактировать"
-                      @click.stop="editFolder(folder)"
+                      @click="showDialogEditFolder(folder)"
                     ></button>
                     <button
                       class="mdi mdi-delete"
@@ -42,22 +55,35 @@
                   </div>
                 </div>
                 <div v-if="currentFolderId === folder.id">
-                  <ul class="" v-if="filteredNotes.length > 0">
+                  <ul class="">
                     <li
                       class=""
                       :class="{ active: note.id == currentNoteId }"
-                      v-for="note in filteredNotes"
+                      v-for="note in notes"
                       :key="note.id"
                       @click="setActiveNote(note, note.id)"
                     >
+                      <my-dialog v-model:show="visibleEditNote">
+                        <note-edit-form
+                          :note="currentEditNote"
+                          @edit="editNote"
+                        />
+                      </my-dialog>
                       <div class="d-flex flex-row justify-content-between">
                         {{ note.title }}
                         <div class="d-flex">
                           <button
-                            class="mdi mdi-delete"
-                            title="Удалить"
-                            @click.stop="removeNote(note)"
+                            class="mdi mdi-pencil"
+                            title="Редактировать"
+                            @click="showDialogEditNote(note)"
                           ></button>
+                          <div class="d-flex">
+                            <button
+                              class="mdi mdi-delete"
+                              title="Удалить"
+                              @click.stop="removeNote(note)"
+                            ></button>
+                          </div>
                         </div>
                       </div>
                     </li>
@@ -82,7 +108,7 @@
                 selector: 'textarea',
                 height: 630,
               }"
-              v-model="this.currentNote.content"
+              v-model="this.noteContent"
             />
             <button id="btn-add-folder" @click="sendData">
               Сохранить данные
@@ -96,67 +122,74 @@
 
 <script>
 import axios from "axios";
+import { marked } from "marked";
+import JSZip from "jszip";
 import FolderCreateForm from "../FolderCreateForm.vue";
+import NoteCreateForm from "../NoteCreateForm.vue";
 import MyDialog from "../ui/MyDialog.vue";
 import Editor from "@tinymce/tinymce-vue";
+import FolderEditForm from "../FolderEditForm.vue";
+import NoteEditForm from "../NoteEditForm.vue";
 
 export default {
-  components: { FolderCreateForm, MyDialog, Editor },
+  components: {
+    FolderCreateForm,
+    MyDialog,
+    Editor,
+    FolderEditForm,
+    NoteCreateForm,
+    NoteEditForm,
+  },
   name: "NotesPage",
   data() {
     return {
-      folders: [
-        {
-          id: 1,
-          name: "Folder 1",
-          parent: null,
-        },
-        {
-          id: 2,
-          name: "Folder 2",
-          parent: null,
-        },
-      ],
-      notes: [
-        {
-          id: 1,
-          folder_id: 1,
-          title: "Заметка1",
-          content: "<p><strong>ЧТо-то</strong></p>",
-        },
-        {
-          id: 2,
-          folder_id: 2,
-          title: "Заметка2",
-          content: "что-то там",
-        },
-      ],
+      folders: [],
+      notes: [],
       currentFolder: null,
+      currentEditFolder: null,
+      currentEditNote: null,
       currentFolderId: -1,
       visibleCreateFolder: false,
       currentNote: null,
       currentNoteId: -1,
       visibleCreateNote: false,
-      content: "",
+      visibleCreateNote: false,
+      visibleEditFolder: false,
+      visibleEditNote: false,
+      noteContent: "",
     };
   },
   methods: {
     setActiveFolder(folder, currentFolderId) {
       this.currentFolder = folder;
       this.currentFolderId = folder ? currentFolderId : -1;
-      // this.getCategoriesByJob();
+      this.getNotesByFolder();
     },
     setActiveNote(note, id) {
       this.currentNote = note;
       this.currentNoteId = note ? id : -1;
+      this.updateNoteContent();
     },
     showDialogCreateFolder() {
       this.visibleCreateFolder = true;
     },
+    showDialogCreateNote(folder) {
+      this.currentEditFolder = folder;
+      this.visibleCreateNote = true;
+    },
+    showDialogEditFolder(folder) {
+      this.currentEditFolder = folder;
+      this.visibleEditFolder = true;
+    },
+    showDialogEditNote(note) {
+      this.currentEditNote = note;
+      this.visibleEditNote = true;
+    },
+
     getFoldersByUser() {
       axios
         .get("http://localhost:8080/folders", {
-          withCredentials: true, // Включает отправку кук
+          withCredentials: true,
         })
         .then((response) => {
           this.folders = response.data;
@@ -177,56 +210,49 @@ export default {
     },
     editFolder(folder) {
       axios
-        .patch("http://localhost:8080/folders", folder)
+        .patch(`http://localhost:8080/folders?id=${folder.id}`, folder)
         .then((response) => {
           this.getFoldersByUser();
+          this.visibleEditFolder = false;
           console.log(response.data);
         })
         .catch((error) => {
           if (error.response) {
-            // Запрос был сделан, и сервер ответил кодом статуса, который выходит за пределы диапазона 2xx
             console.error("Response error:", error.response.data);
           } else if (error.request) {
-            // Запрос был сформирован, но ответ не был получен
             console.error("Request error:", error.request);
           } else {
-            // Произошла ошибка при настройке запроса
             console.error("Error:", error.message);
           }
         });
     },
     createFolder(folder) {
       if (folder.name != "" && folder.name.length >= 3) {
-        // axios
-        //   .post("http://localhost:8080/folders", folder)
-        //   .then((response) => {
-        //     this.getFoldersByUser();
-        //     this.visibleCreateFolder = false;
-        //     console.log(response.data);
-        //   })
-        //   .catch((error) => {
-        //     if (error.response) {
-        //       // Запрос был сделан, и сервер ответил кодом статуса, который выходит за пределы диапазона 2xx
-        //       console.error("Response error:", error.response.data);
-        //     } else if (error.request) {
-        //       // Запрос был сформирован, но ответ не был получен
-        //       console.error("Request error:", error.request);
-        //     } else {
-        //       // Произошла ошибка при настройке запроса
-        //       console.error("Error:", error.message);
-        //     }
-        //   });
-        this.folders.push({
-          id: 111,
-          name: folder.name,
-          parent: folder.parent,
-        });
+        axios
+          .post("http://localhost:8080/folders", folder)
+          .then((response) => {
+            this.getFoldersByUser();
+            this.visibleCreateFolder = false;
+            console.log(response.data);
+          })
+          .catch((error) => {
+            if (error.response) {
+              // Запрос был сделан, и сервер ответил кодом статуса, который выходит за пределы диапазона 2xx
+              console.error("Response error:", error.response.data);
+            } else if (error.request) {
+              // Запрос был сформирован, но ответ не был получен
+              console.error("Request error:", error.request);
+            } else {
+              // Произошла ошибка при настройке запроса
+              console.error("Error:", error.message);
+            }
+          });
         this.visibleCreateFolder = false;
-      } else alert("Название должно быть более 3-х символов");
+      }
     },
     removeFolder(folder) {
       axios
-        .delete("http://localhost:8080/folders", folder.id)
+        .delete(`http://localhost:8080/folders?id=${folder.id}`)
         .then((response) => {
           this.getFoldersByUser();
           console.log(response.data);
@@ -245,20 +271,151 @@ export default {
         });
     },
 
-    sendData() {
-      console.log(this.currentNote.content);
+    getNotesByFolder() {
+      axios
+        .get(`http://localhost:8080/folders/${this.currentFolderId}/notes`)
+        .then((response) => {
+          this.notes = response.data;
+        })
+        .catch((error) => {
+          if (error.response) {
+            console.error("Response error:", error.response.data);
+          } else if (error.request) {
+            console.error("Request error:", error.request);
+          } else {
+            console.error("Error:", error.message);
+          }
+        });
+    },
+    createNote(note) {
+      axios
+        .post("http://localhost:8080/notes", note)
+        .then((response) => {
+          this.getNotesByFolder();
+          this.visibleCreateNote = false;
+          console.log(response.data);
+        })
+        .catch((error) => {
+          if (error.response) {
+            console.error("Response error:", error.response.data);
+          } else if (error.request) {
+            console.error("Request error:", error.request);
+          } else {
+            console.error("Error:", error.message);
+          }
+        });
+    },
+    editNote(note) {
+      axios
+        .patch(`http://localhost:8080/notes?id=${note.id}`, note)
+        .then((response) => {
+          this.getNotesByFolder();
+          this.visibleEditNote = false;
+          console.log(response.data);
+        })
+        .catch((error) => {
+          if (error.response) {
+            console.error("Response error:", error.response.data);
+          } else if (error.request) {
+            console.error("Request error:", error.request);
+          } else {
+            console.error("Error:", error.message);
+          }
+        });
+    },
+    removeNote(note) {
+      axios
+        .delete(`http://localhost:8080/notes?id=${note.id}`)
+        .then((response) => {
+          this.getNotesByFolder();
+          console.log(response.data);
+        })
+        .catch((error) => {
+          if (error.response) {
+            console.error("Response error:", error.response.data);
+          } else if (error.request) {
+            console.error("Request error:", error.request);
+          } else {
+            console.error("Error:", error.message);
+          }
+        });
+    },
+
+    async sendData() {
+      const encode = await this.convertAndZip(this.noteContent);
+      const data = {
+        id: this.currentNote.id,
+        title: this.currentNote.title,
+        content: encode,
+        folder_id: this.currentNote.folder_id,
+      };
+      await axios
+        .patch(`http://localhost:8080/notes?id=${data.id}`, data)
+        .then((response) => {
+          this.getNotesByFolder();
+          this.visibleEditNote = false;
+          console.log(response.data);
+        })
+        .catch((error) => {
+          if (error.response) {
+            console.error("Response error:", error.response.data);
+          } else if (error.request) {
+            console.error("Request error:", error.request);
+          } else {
+            console.error("Error:", error.message);
+          }
+        });
+    },
+
+    async convertAndZip(noteHTML) {
+      try {
+        // 1. Конвертировать HTML в Markdown
+        const markdownContent = marked(noteHTML);
+        // 2. Конвертировать Markdown в Base64
+        const base64Content = btoa(
+          unescape(encodeURIComponent(markdownContent))
+        );
+        // 3. Упаковать в архив
+        const zip = new JSZip();
+        zip.file("note.md", base64Content); // можно использовать .md как расширение файла
+        const zipContent = await zip.generateAsync({ type: "base64" });
+        // 4. Поместить результат в поле content объекта
+        console.log("Заметка успешно упакована в архив:", this.zipContent);
+        return zipContent;
+      } catch (error) {
+        console.error("Ошибка при обработке заметки:", error);
+      }
+    },
+    async unpackAndConvert(noteObject) {
+      try {
+        // 1. Декодировать Base64 из content в бинарный формат
+        const binaryContent = atob(noteObject.content);
+        // 2. Распаковать ZIP
+        const zip = new JSZip();
+        const zipObject = await zip.loadAsync(binaryContent);
+        // 3. Получить файл note.md из ZIP
+        const markdownBase64 = await zipObject.file("note.md").async("string");
+        // 4. Декодировать Base64 в Markdown
+        const markdownContent = String(
+          decodeURIComponent(escape(atob(markdownBase64)))
+        );
+        console.log(typeof markdownContent);
+
+        // Возврат к исходному HTML
+        return markdownContent;
+      } catch (error) {
+        console.error("Ошибка при распаковке и конвертации заметки:", error);
+      }
+    },
+
+    async updateNoteContent() {
+      if (this.currentNote.content !== "") {
+        this.noteContent = await this.unpackAndConvert(this.currentNote);
+      } else this.noteContent = "";
     },
   },
   mounted() {
     this.getFoldersByUser();
-  },
-  computed: {
-    filteredNotes() {
-      console.log("Current Folder ID:", this.currentFolderId);
-      return this.notes.filter(
-        (note) => note.folder_id === this.currentFolderId
-      );
-    },
   },
 };
 </script>
@@ -305,7 +462,6 @@ export default {
   margin-left: 8px;
 }
 .folderItem.list-group-item.active {
-  /* Ваши стили здесь */
   background-color: #00ff66; /* Пример: фон голубого цвета */
   color: white; /* Пример: белый текст */
 }
@@ -314,12 +470,4 @@ export default {
   width: 92%;
   height: 100%;
 }
-/* @media (min-width: 1024px) {
-  #sample {
-    display: flex;
-    flex-direction: column;
-    place-items: center;
-    width: 100%;
-  }
-} */
 </style>
