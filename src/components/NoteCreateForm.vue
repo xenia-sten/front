@@ -24,7 +24,7 @@ export default {
       note: {
         title: "",
         content: "",
-        folder_id: this.folder_id,
+        folder_id: this.folder.id,
       },
     };
   },

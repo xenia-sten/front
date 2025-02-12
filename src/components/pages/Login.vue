@@ -6,12 +6,14 @@
           v-model="email"
           :rules="emailRules"
           label="Email"
+          type="email"
         ></v-text-field>
 
         <v-text-field
           v-model="password"
           :rules="passwordRules"
           label="Password"
+          type="password"
         ></v-text-field>
 
         <v-btn class="mt-2" type="submit" block>Submit</v-btn>
@@ -22,7 +24,7 @@
 
 <script>
 import axios from "axios";
-import { useAuthStore } from '../../store/authStore';
+import { useAuthStore } from "../../store/authStore";
 
 export default {
   // eslint-disable-next-line vue/multi-word-component-names

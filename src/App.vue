@@ -6,20 +6,20 @@
           class="navbar-nav d-flex flex-row justify-content-evenly"
         >
           <li class="nav-item">
-            <router-link to="/" class="nav-link">Home</router-link>
+            <router-link to="/" class="nav-link">Домашняя</router-link>
           </li>
-          <li class="nav-item">
-            <router-link to="/notes" class="nav-link">Notes</router-link>
-          </li>
-          <li class="nav-item" v-if="!isAuthenticated">
-            <router-link to="/register" class="nav-link"> Sign Up </router-link>
+          <li class="nav-item" v-if="isAuthenticated">
+            <router-link to="/notes" class="nav-link">Заметки</router-link>
           </li>
           <li class="nav-item" v-if="!isAuthenticated">
-            <router-link to="/login" class="nav-link"> Login </router-link>
+            <router-link to="/register" class="nav-link"> Регистрация </router-link>
+          </li>
+          <li class="nav-item" v-if="!isAuthenticated">
+            <router-link to="/login" class="nav-link"> Вход </router-link>
           </li>
 
           <li class="nav-item" v-if="isAuthenticated">
-            <router-link to="/login" class="nav-link" @click.prevent="logOut"> LogOut </router-link>
+            <router-link to="/login" class="nav-link" @click.prevent="logOut"> Выход </router-link>
           </li>
         </ul>
       </div>
@@ -56,6 +56,10 @@ export default {
       this.$router.push("/login");
     },
   },
+  mounted(){
+    const authStore = useAuthStore();
+    authStore.checkSession();
+  }
 };
 </script>
 

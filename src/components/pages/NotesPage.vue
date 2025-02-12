@@ -101,18 +101,36 @@
             <Editor
               api-key="fzfmewn1dktw5s01kgd9g3ud3wstjz3260x5fupjxzfpmarz"
               :init="{
-                plugins: 'lists link image table code help wordcount',
+                language: 'ru',
+                plugins:
+                  'preview importcss searchreplace autolink directionality code visualblocks visualchars image link media table charmap pagebreak nonbreaking anchor insertdatetime advlist lists wordcount help charmap quickbars emoticons ',
                 menubar: false,
                 toolbar:
-                  'undo redo | styleselect | bold italic | link image | alignleft aligncenter alignright | bullist numlist outdent indent | charmap',
+                  'undo redo | save | blocks fontfamily fontsize | bold italic underline strikethrough | align numlist bullist | link image | table media | lineheight outdent indent| forecolor backcolor removeformat | charmap emoticons | code  preview | print | pagebreak anchor | ltr rtl | ExportPdf',
+                // save_onsavecallback: sendData(),
                 selector: 'textarea',
                 height: 630,
+                setup: function (editor) {
+                  editor.ui.registry.addButton('ExportPdf', {
+                    text: 'ExportPdf',
+                    icon: 'export-pdf',
+                    onAction: function () {
+                      myExport(editor);
+                    },
+                  });
+                  editor.ui.registry.addButton('save', {
+                    icon: 'save',
+                    tooltip: 'Сохранить заметку',
+                    onAction: function () {
+                      sendData();
+                    },
+                  });
+                },
+                // autoresize_overflow_padding: 50,
+                height: this.size,
               }"
               v-model="this.noteContent"
             />
-            <button id="btn-add-folder" @click="sendData">
-              Сохранить данные
-            </button>
           </main>
         </div>
       </div>
@@ -130,6 +148,7 @@ import MyDialog from "../ui/MyDialog.vue";
 import Editor from "@tinymce/tinymce-vue";
 import FolderEditForm from "../FolderEditForm.vue";
 import NoteEditForm from "../NoteEditForm.vue";
+import { ExportPDF } from "./plugins/pdfExport.js";
 
 export default {
   components: {
@@ -143,6 +162,7 @@ export default {
   name: "NotesPage",
   data() {
     return {
+      size: 685,
       folders: [],
       notes: [],
       currentFolder: null,
@@ -160,6 +180,9 @@ export default {
     };
   },
   methods: {
+    myExport(editor) {
+      ExportPDF(editor);
+    },
     setActiveFolder(folder, currentFolderId) {
       this.currentFolder = folder;
       this.currentFolderId = folder ? currentFolderId : -1;
@@ -380,7 +403,7 @@ export default {
         zip.file("note.md", base64Content); // можно использовать .md как расширение файла
         const zipContent = await zip.generateAsync({ type: "base64" });
         // 4. Поместить результат в поле content объекта
-        console.log("Заметка успешно упакована в архив:", this.zipContent);
+        // console.log("Заметка успешно упакована в архив:", this.zipContent);
         return zipContent;
       } catch (error) {
         console.error("Ошибка при обработке заметки:", error);
@@ -399,7 +422,7 @@ export default {
         const markdownContent = String(
           decodeURIComponent(escape(atob(markdownBase64)))
         );
-        console.log(typeof markdownContent);
+        // console.log(typeof markdownContent);
 
         // Возврат к исходному HTML
         return markdownContent;
