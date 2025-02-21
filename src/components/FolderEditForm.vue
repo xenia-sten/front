@@ -19,7 +19,7 @@ export default {
       required: true,
     },
   },
-
+  
   methods: {
     editFolder() {
       this.$emit("edit", this.folder);

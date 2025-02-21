@@ -1,23 +1,28 @@
 <template>
   <div>
     <div class="container-fluid">
-      <div class="folders" style="padding-left: 1vw">
+      <div class="folders" style="padding-left: 2vw">
         <div class="col-md-11">
           <br />
           <h4>Папки</h4>
           <button id="btn-add-folder" @click="showDialogCreateFolder">
-            Создать
+            Создать папку
           </button>
           <!-- eslint-disable -->
           <my-dialog v-model:show="visibleCreateFolder">
             <folder-create-form @create="createFolder" />
           </my-dialog>
+          <ul v-if="folders.length > 0">
+            <li v-for="folder in folders" :key="folder.id">
+              <Folder :isParent="true" :folderObj="folder" @note-clicked="openEditor"></Folder>
+            </li>
+          </ul>
 
-          <ul class="" v-if="folders.length > 0">
+          <!-- <ul class="" v-if="folders.length > 0" style="padding-left: 0rem">
             <li
               class="folderItem"
               :class="{ active: folder.id == currentFolderId }"
-              v-for="folder in folders"
+              v-for="folder in parentFolders"
               :key="folder.id"
               @click.stop="setActiveFolder(folder, folder.id)"
             >
@@ -35,7 +40,12 @@
               </my-dialog>
               <div class="d-flex flex-column" style="width: 100%">
                 <div class="d-flex flex-row justify-content-between">
-                  {{ folder.name }}
+                  <span
+                    :class="{ underlined: folder.id == currentFolderId }"
+                    class="folder-name"
+                  >
+                    {{ folder.name }}
+                  </span>
                   <div class="d-flex">
                     <button
                       class="mdi mdi-plus"
@@ -54,10 +64,101 @@
                     ></button>
                   </div>
                 </div>
-                <div v-if="currentFolderId === folder.id">
-                  <ul class="">
+                <div
+                  v-if="currentFolderId === folder.id"
+                  class="d-flex flex-column"
+                >
+                  <ul
+                    class=""
+                    v-if="folders.length > 0"
+                    style="padding-left: 1rem"
+                  >
                     <li
-                      class=""
+                      class="subFolderItem flex-column d-flex"
+                      :class="{ active: folder.id == currentSubFolderId }"
+                      v-for="folder in subFolders"
+                      :key="folder.id"
+                      @click.stop="setActiveSubFolder(folder, folder.id)"
+                    >
+                      <div
+                        class="d-flex flex-row justify-content-between"
+                        v-if="folder.parentId === currentFolder.id"
+                        style="width: 100%"
+                      >
+                        <span
+                          :class="{
+                            underlined: folder.id == currentSubFolderId,
+                          }"
+                          class="folder-name"
+                        >
+                          {{ folder.name }}
+                        </span>
+                        <div class="d-flex">
+                          <button
+                            class="mdi mdi-plus"
+                            title="Добавить заметку"
+                            @click="showDialogCreateNote(folder)"
+                          ></button>
+                          <button
+                            class="mdi mdi-pencil"
+                            title="Редактировать"
+                            @click="showDialogEditFolder(folder)"
+                          ></button>
+                          <button
+                            class="mdi mdi-delete"
+                            title="Удалить"
+                            @click.stop="removeFolder(folder)"
+                          ></button>
+                        </div>
+                      </div>
+                      <div v-if="currentSubFolderId === folder.id">
+                        <ul
+                          class=""
+                          v-if="subNotes.length > 0"
+                          style="padding-left: 0rem"
+                        >
+                          <li
+                            class="noteItem"
+                            :class="{ active: note.id == currentNoteId }"
+                            v-for="note in subNotes"
+                            :key="note.id"
+                            @click="setActiveNote(note, note.id)"
+                          >
+                            <my-dialog v-model:show="visibleEditNote">
+                              <note-edit-form
+                                :note="currentEditNote"
+                                @edit="editNote"
+                              />
+                            </my-dialog>
+                            <div
+                              class="d-flex flex-row justify-content-between"
+                            >
+                              {{ note.title }}
+                              <div class="d-flex">
+                                <button
+                                  class="mdi mdi-pencil"
+                                  title="Редактировать"
+                                  @click="showDialogEditNote(note)"
+                                ></button>
+                                <div class="d-flex">
+                                  <button
+                                    class="mdi mdi-delete"
+                                    title="Удалить"
+                                    @click.stop="removeNote(note)"
+                                  ></button>
+                                </div>
+                              </div>
+                            </div>
+                          </li>
+                        </ul>
+                      </div>
+                    </li>
+                  </ul>
+                </div>
+                <div v-if="currentFolderId === folder.id">
+                  <ul class="" v-if="notes.length > 0">
+                    <li
+                      class="noteItem"
                       :class="{ active: note.id == currentNoteId }"
                       v-for="note in notes"
                       :key="note.id"
@@ -91,31 +192,35 @@
                 </div>
               </div>
             </li>
-          </ul>
-          <h5 v-else style="color: red">Список папок пуст</h5>
+          </ul> -->
+          <p v-else style="color: red">Список папок пуст</p>
         </div>
       </div>
+
+      <my-dialog v-model:show="visibleImageEditor">
+        <image-editor @create="addImage" />
+      </my-dialog>
       <div class="note">
-        <div v-if="currentNote">
+        <div v-if="editingNote">
           <main id="sample">
             <Editor
               api-key="fzfmewn1dktw5s01kgd9g3ud3wstjz3260x5fupjxzfpmarz"
               :init="{
                 language: 'ru',
                 plugins:
-                  'preview importcss searchreplace autolink directionality code visualblocks visualchars image link media table charmap pagebreak nonbreaking anchor insertdatetime advlist lists wordcount help charmap quickbars emoticons ',
+                  'preview importcss searchreplace autolink directionality code visualblocks visualchars image link media table charmap pagebreak nonbreaking anchor insertdatetime advlist lists wordcount help charmap quickbars emoticons searchreplace autosave',
                 menubar: false,
                 toolbar:
-                  'undo redo | save | blocks fontfamily fontsize | bold italic underline strikethrough | align numlist bullist | link image | table media | lineheight outdent indent| forecolor backcolor removeformat | charmap emoticons | code  preview | print | pagebreak anchor | ltr rtl | ExportPdf',
-                // save_onsavecallback: sendData(),
+                  'undo redo | save | blocks fontfamily fontsize | bold italic underline strikethrough | align numlist bullist | link image | table media | lineheight outdent indent| forecolor backcolor removeformat | charmap emoticons | code  preview | print searchreplace | pagebreak anchor | ltr rtl | ImageEditor',
                 selector: 'textarea',
                 height: 630,
                 setup: function (editor) {
-                  editor.ui.registry.addButton('ExportPdf', {
-                    text: 'ExportPdf',
-                    icon: 'export-pdf',
+                  editor.ui.registry.addButton('ImageEditor', {
+                    icon: 'browse',
+                    tooltip: 'Рисовалка',
                     onAction: function () {
-                      myExport(editor);
+                      showImageEditor();
+                      currEditor = editor;
                     },
                   });
                   editor.ui.registry.addButton('save', {
@@ -127,7 +232,7 @@
                   });
                 },
                 // autoresize_overflow_padding: 50,
-                height: this.size,
+                height: this.sizeHieght,
               }"
               v-model="this.noteContent"
             />
@@ -148,27 +253,37 @@ import MyDialog from "../ui/MyDialog.vue";
 import Editor from "@tinymce/tinymce-vue";
 import FolderEditForm from "../FolderEditForm.vue";
 import NoteEditForm from "../NoteEditForm.vue";
+import ImageEditor from "../ImageEditor.vue";
 import { ExportPDF } from "./plugins/pdfExport.js";
+import Folder from "../Folder.vue";
 
 export default {
   components: {
+    Folder,
     FolderCreateForm,
     MyDialog,
     Editor,
     FolderEditForm,
     NoteCreateForm,
     NoteEditForm,
+    ImageEditor,
   },
   name: "NotesPage",
   data() {
     return {
-      size: 685,
+      sizeWidth: "",
+      sizeHieght: "",
       folders: [],
+      selectedNote: null,
+      editingNote: false,
       notes: [],
+      subNotes: [],
       currentFolder: null,
+      currentSubFolder: null,
       currentEditFolder: null,
       currentEditNote: null,
       currentFolderId: -1,
+      currentSubFolderId: -1,
       visibleCreateFolder: false,
       currentNote: null,
       currentNoteId: -1,
@@ -176,6 +291,8 @@ export default {
       visibleCreateNote: false,
       visibleEditFolder: false,
       visibleEditNote: false,
+      visibleImageEditor: false,
+      currEditor: "",
       noteContent: "",
     };
   },
@@ -183,10 +300,20 @@ export default {
     myExport(editor) {
       ExportPDF(editor);
     },
+    openEditor(note) {
+      this.selectedNote = note;
+      this.editingNote = true;
+      this.updateNoteContent();
+    },
     setActiveFolder(folder, currentFolderId) {
       this.currentFolder = folder;
       this.currentFolderId = folder ? currentFolderId : -1;
-      this.getNotesByFolder();
+      this.getNotesByFolder(currentFolderId);
+    },
+    setActiveSubFolder(folder, currentSubFolderId) {
+      this.currentSubFolder = folder;
+      this.currentSubFolderId = folder ? currentSubFolderId : -1;
+      this.getNotesByFolder(currentSubFolderId);
     },
     setActiveNote(note, id) {
       this.currentNote = note;
@@ -208,25 +335,27 @@ export default {
       this.currentEditNote = note;
       this.visibleEditNote = true;
     },
+    showImageEditor() {
+      this.visibleImageEditor = true;
+    },
 
     getFoldersByUser() {
       axios
-        .get("http://localhost:8080/folders", {
+        .get("http://localhost:8080/folders/parentFolders", {
           withCredentials: true,
         })
         .then((response) => {
-          this.folders = response.data;
+          this.folders = response.data.sort((a, b) =>
+            a.name.localeCompare(b.name, { sensitivity: "base" })
+          );
         })
         .catch((error) => {
           if (error.response) {
-            // Запрос был сделан, и сервер ответил кодом статуса, который выходит за пределы диапазона 2xx
             console.log("Response error:", error.response.data);
             console.log(error.response);
           } else if (error.request) {
-            // Запрос был сформирован, но ответ не был получен
             console.log("Request error:", error.request);
           } else {
-            // Произошла ошибка при настройке запроса
             console.log("Error:", error.message);
           }
         });
@@ -294,11 +423,15 @@ export default {
         });
     },
 
-    getNotesByFolder() {
+    getNotesByFolder(id) {
       axios
-        .get(`http://localhost:8080/folders/${this.currentFolderId}/notes`)
+        .get(`http://localhost:8080/folders/${id}/notes`)
         .then((response) => {
-          this.notes = response.data;
+          if (id === this.currentFolderId) {
+            this.notes = response.data;
+          } else {
+            this.subNotes = response.data;
+          }
         })
         .catch((error) => {
           if (error.response) {
@@ -363,7 +496,6 @@ export default {
           }
         });
     },
-
     async sendData() {
       const encode = await this.convertAndZip(this.noteContent);
       const data = {
@@ -422,23 +554,66 @@ export default {
         const markdownContent = String(
           decodeURIComponent(escape(atob(markdownBase64)))
         );
-        // console.log(typeof markdownContent);
-
         // Возврат к исходному HTML
         return markdownContent;
       } catch (error) {
         console.error("Ошибка при распаковке и конвертации заметки:", error);
       }
     },
-
+    //Распаковка и конвертирование содержимого заметки
     async updateNoteContent() {
-      if (this.currentNote.content !== "") {
-        this.noteContent = await this.unpackAndConvert(this.currentNote);
+      if (this.selectedNote.content !== "") {
+        this.noteContent = await this.unpackAndConvert(this.selectedNote);
       } else this.noteContent = "";
     },
+    addImage(dataURL) {
+      this.visibleImageEditor = false;
+      // this.currEditor.insertContent(`<img src=http://localhost:8080/notes/${this.currentNote.id}/image/9ea03f56-a0bd-46dc-8561-30c6e8f3d79f>`);
+      axios
+        .post(`http://localhost:8080/notes/${this.currentNote.id}/image`, {
+          img: `${dataURL}`,
+        })
+        .then((response) => {
+          this.editNote(this.currentNote); // ??
+          this.visibleImageEditor = false;
+          console.log(response.data);
+          this.currEditor.insertContent(
+            `<img src=http://localhost:8080/notes/${this.currentNote.id}/image/${response.data}>`
+          );
+        })
+        .catch((error) => {
+          if (error.response) {
+            console.error("Response error:", error.response.data);
+          } else if (error.request) {
+            console.error("Request error:", error.request);
+          } else {
+            console.error("Error:", error.message);
+          }
+        });
+    },
+    showWarning(event) {
+      const message =
+        "Вы действительно хотите покинуть эту страницу? Ваши изменения могут не сохраниться.";
+      event.returnValue = message; // Для некоторых браузеров
+      return message; // Для других браузеров
+    },
   },
+  // computed: {
+  //   parentFolders() {
+  //     return this.folders.filter((folder) => folder.parentId == null);
+  //   },
+  //   subFolders() {
+  //     return this.folders.filter((folder) => folder.parentId !== null);
+  //   },
+  // },
   mounted() {
     this.getFoldersByUser();
+    this.sizeWidth = window.innerWidth - (25 * window.innerWidth) / 100;
+    this.sizeHieght = window.innerHeight - 60;
+    window.addEventListener("beforeunload", this.showWarning);
+  },
+  beforeDestroy() {
+    window.removeEventListener("beforeunload", this.showWarning);
   },
 };
 </script>
@@ -466,13 +641,25 @@ export default {
 }
 .folderItem {
   /* border: 2px solid #343a40; */
-  width: 90%;
+  /* width: 90%; */
   display: flex;
   align-items: center;
   justify-content: space-between;
   position: static;
-  margin-bottom: 5%;
+  margin: 5px;
 }
+.subFolderItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: static;
+  margin: 5px;
+  width: 98%;
+}
+.folder-name {
+  cursor: pointer;
+}
+
 #btn-add-folder {
   border: 1px solid #488acc;
   border-radius: 3px;
@@ -484,11 +671,16 @@ export default {
 .mdi {
   margin-left: 8px;
 }
-.folderItem.list-group-item.active {
-  background-color: #00ff66; /* Пример: фон голубого цвета */
-  color: white; /* Пример: белый текст */
+/* .folderItem.active {
+  background-color: #00ff66;
+  color: white;
+} */
+.underlined {
+  text-decoration: underline;
 }
-
+.noteItem {
+  list-style-type: none;
+}
 #sample {
   width: 92%;
   height: 100%;
