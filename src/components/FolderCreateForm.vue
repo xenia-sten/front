@@ -17,18 +17,19 @@ export default {
     return {
       folder: {
         name: "",
-        parent: null,
+        parent_id: this.parentId,
       },
     };
   },
-
+  props: {
+    parentId:{
+      type: String,
+      default: null,
+    }
+  },
   methods: {
     createFolder() {
       this.$emit("create", this.folder);
-      this.folder = {
-        name: "",
-        parent: null,
-      };
     },
   },
 };

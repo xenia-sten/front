@@ -1,42 +1,48 @@
 <template>
-  <div>
+  <div class="d-flex flex-column align-items-center">
     <v-sheet class="mx-auto mt-5" width="300">
       <v-form fast-fail @submit.prevent="submitForm">
         <v-text-field
           v-model="username"
           :rules="nameRules"
-          label="Name"
+          label="Имя"
         ></v-text-field>
 
-        <v-text-field
-          v-model="email"
-          :rules="emailRules"
-          label="Email"
-        ></v-text-field>
+        <v-text-field v-model="email" type="email" label="Email"></v-text-field>
 
         <v-text-field
           v-model="password"
           :rules="passwordRules"
-          label="Password"
+          type="password"
+          label="Пароль"
         ></v-text-field>
 
         <v-text-field
           v-model="confirmPassword"
-          :rules="confirmPasswordRules"
-          label="Confirm password"
+          type="password"
+          label="Повторить пароль"
         ></v-text-field>
 
-        <v-btn :disabled="isDisabled" class="mt-2" type="submit" block
-          >Submit</v-btn
+        <v-btn class="mt-2" type="submit" block :disabled="!isFormValid"
+          >Отправить</v-btn
         >
       </v-form>
     </v-sheet>
+    <v-alert
+      v-if="showAlert"
+      type="error"
+      dismissible
+      @input="showAlert"
+      class="alert-container"
+    >
+      {{ alertMessage }}
+    </v-alert>
   </div>
 </template>
 
 <script>
 import axios from "axios";
-import { useAuthStore } from '../../store/authStore';
+import { useAuthStore } from "../../store/authStore";
 
 export default {
   // eslint-disable-next-line vue/multi-word-component-names
@@ -48,41 +54,41 @@ export default {
       email: "",
       password: "",
       confirmPassword: "",
-      isDisabled: false,
+      showAlert: false,
+      alertMessage: "",
       nameRules: [
         (value) => {
-          if (value?.length >= 3 && value?.length <= 50) return true;
-
-          return "Username must be between 3 and 50 characters!";
-        },
-      ],
-      emailRules: [
-        (value) => {
-          const EMAIL_REGEXP =
-            /^(([^<>()[\].,;:\s@"]+(\.[^<>()[\].,;:\s@"]+)*)|(".+"))@(([^<>()[\].,;:\s@"]+\.)+[^<>()[\].,;:\s@"]{2,})$/iu;
-          if (EMAIL_REGEXP.test(value)) return true;
-
-          return "Invalid email!";
+          if (value?.length >= 3 && value?.length <= 30) return true;
+          return "Имя может быть от 3 до 30 символов!";
         },
       ],
       passwordRules: [
         (value) => {
-          if (value?.length >= 8 && value?.length <= 16) return true;
-
-          return "Password must be between 8 and 16 characters!";
-        },
-      ],
-      confirmPasswordRules: [
-        (value) => {
-          this.isFormSucces();
-          if (value == this.password) return true;
-
-          return "Passwords must be match!";
+          if (value?.length >= 6 && value?.length <= 20) return true;
+          return "Пароль может быть от 6 до 20 символов!";
         },
       ],
     };
   },
-  mounted() {},
+  computed: {
+    isFormValid() {
+      const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      const usernameLengthValid =
+        this.username.length >= 3 && this.username.length <= 30;
+      const passwordLengthValid =
+        this.password.length >= 6 && this.password.length <= 20;
+
+      return (
+        this.username !== "" &&
+        this.email !== "" &&
+        this.password !== "" &&
+        this.confirmPassword !== "" &&
+        emailPattern.test(this.email) &&
+        usernameLengthValid &&
+        passwordLengthValid
+      );
+    },
+  },
   methods: {
     submitForm() {
       const authStore = useAuthStore();
@@ -92,7 +98,6 @@ export default {
         password: this.password,
         confirmPassword: this.confirmPassword,
       };
-      console.log(this.isFormSucces());
       axios
         .post("http://localhost:8080/auth/register", data)
         .then((response) => {
@@ -101,29 +106,31 @@ export default {
           this.$router.push("/notes");
         })
         .catch((error) => {
-          console.error("Ошибка:", error);
-          alert("Неверно введенные данные");
+          if (error.response) {
+            console.error("Response error:", error.response.data.errors[0]);
+            this.alertMessage = error.response.data.errors[0];
+            this.showNotification();
+          } else if (error.request) {
+            console.error("Request error:", error.request);
+          } else {
+            console.error("Error:", error.message);
+          }
         });
     },
-    isFormSucces() {
-      const EMAIL_REGEXP =
-        /^(([^<>()[\].,;:\s@"]+(\.[^<>()[\].,;:\s@"]+)*)|(".+"))@(([^<>()[\].,;:\s@"]+\.)+[^<>()[\].,;:\s@"]{2,})$/iu;
-      if (
-        this.username.length >= 3 &&
-        this.username.length <= 50 &&
-        EMAIL_REGEXP.test(this.email) &&
-        this.password.length >= 8 &&
-        this.password.length <= 16 &&
-        this.confirmPasswordRules.length >= 8 &&
-        this.confirmPasswordRules.length <= 16
-      ) {
-        this.isDisabled = true;
-        console.log(this.isDisabled);
-      } else this.isDisabled = false;
+    showNotification() {
+      this.showAlert = true;
+      setTimeout(() => {
+        this.showAlert = false;
+      }, 3000);
     },
   },
 };
 </script>
 
 <style scoped>
+.alert-container {
+  position: fixed;
+  bottom: 20px; /* Отступ от нижней части экрана */
+  z-index: 1000;
+}
 </style>

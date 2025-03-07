@@ -32,11 +32,6 @@ export default {
   methods: {
     createNote() {
       this.$emit("create", this.note);
-      this.folder = {
-        title: "",
-        content: "",
-        folder_id: this.folder.id,
-      };
     },
   },
 };

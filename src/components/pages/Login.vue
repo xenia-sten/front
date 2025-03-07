@@ -1,24 +1,23 @@
 <template>
-  <div>
+  <div class="d-flex flex-column align-items-center">
     <v-sheet class="mx-auto mt-5" width="300">
       <v-form fast-fail @submit.prevent="login()">
-        <v-text-field
-          v-model="email"
-          :rules="emailRules"
-          label="Email"
-          type="email"
-        ></v-text-field>
+        <v-text-field v-model="email" label="Email" type="email"></v-text-field>
 
         <v-text-field
           v-model="password"
-          :rules="passwordRules"
           label="Password"
           type="password"
         ></v-text-field>
 
-        <v-btn class="mt-2" type="submit" block>Submit</v-btn>
+        <v-btn class="mt-2" type="submit" block :disabled="!isFormValid"
+          >Submit</v-btn
+        >
       </v-form>
     </v-sheet>
+    <v-alert v-if="showAlert" type="error" dismissible @input="showAlert" class="alert-container">
+      {{ alertMessage }}
+    </v-alert>
   </div>
 </template>
 
@@ -33,9 +32,20 @@ export default {
     return {
       email: "",
       password: "",
+      showAlert: false,
+      alertMessage: "",
     };
   },
-
+  computed: {
+    isFormValid() {
+      const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/; // Регулярное выражение для проверки формата email
+      return (
+        this.email !== "" &&
+        this.password !== "" &&
+        emailPattern.test(this.email)
+      );
+    },
+  },
   methods: {
     login() {
       const authStore = useAuthStore();
@@ -51,20 +61,30 @@ export default {
         })
         .catch((error) => {
           if (error.response) {
-            // Запрос был сделан, и сервер ответил кодом статуса, который выходит за пределы диапазона 2xx
             console.error("Response error:", error.response.data);
+            this.alertMessage = error.response.data.error;
+            this.showNotification();
           } else if (error.request) {
-            // Запрос был сформирован, но ответ не был получен
             console.error("Request error:", error.request);
           } else {
-            // Произошла ошибка при настройке запроса
             console.error("Error:", error.message);
           }
         });
+    },
+    showNotification() {
+      this.showAlert = true;
+      setTimeout(() => {
+        this.showAlert = false;
+      }, 3000);
     },
   },
 };
 </script>
 
-<style>
+<style scoped>
+.alert-container{
+  position: fixed;
+  bottom: 20px; /* Отступ от нижней части экрана */
+  z-index: 1000;
+}
 </style>

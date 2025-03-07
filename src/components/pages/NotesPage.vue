@@ -14,7 +14,13 @@
           </my-dialog>
           <ul v-if="folders.length > 0">
             <li v-for="folder in folders" :key="folder.id">
-              <Folder :isParent="true" :folderObj="folder" @note-clicked="openEditor"></Folder>
+              <Folder
+                :isParent="true"
+                :folderObj="folder"
+                @note-clicked="openEditor"
+                @note-deleted="closeEditor"
+                @folder-removed="getFoldersByUser"
+              ></Folder>
             </li>
           </ul>
 
@@ -239,6 +245,17 @@
           </main>
         </div>
       </div>
+      <div class="d-flex flex-column align-items-center">
+        <v-alert
+          v-if="showAlert"
+          type="success"
+          dismissible
+          @input="showAlert"
+          class="alert-container"
+        >
+          {{ alertMessage }}
+        </v-alert>
+      </div>
     </div>
   </div>
 </template>
@@ -248,13 +265,9 @@ import axios from "axios";
 import { marked } from "marked";
 import JSZip from "jszip";
 import FolderCreateForm from "../FolderCreateForm.vue";
-import NoteCreateForm from "../NoteCreateForm.vue";
 import MyDialog from "../ui/MyDialog.vue";
 import Editor from "@tinymce/tinymce-vue";
-import FolderEditForm from "../FolderEditForm.vue";
-import NoteEditForm from "../NoteEditForm.vue";
 import ImageEditor from "../ImageEditor.vue";
-import { ExportPDF } from "./plugins/pdfExport.js";
 import Folder from "../Folder.vue";
 
 export default {
@@ -263,9 +276,6 @@ export default {
     FolderCreateForm,
     MyDialog,
     Editor,
-    FolderEditForm,
-    NoteCreateForm,
-    NoteEditForm,
     ImageEditor,
   },
   name: "NotesPage",
@@ -276,64 +286,35 @@ export default {
       folders: [],
       selectedNote: null,
       editingNote: false,
-      notes: [],
-      subNotes: [],
-      currentFolder: null,
-      currentSubFolder: null,
-      currentEditFolder: null,
-      currentEditNote: null,
-      currentFolderId: -1,
-      currentSubFolderId: -1,
       visibleCreateFolder: false,
-      currentNote: null,
-      currentNoteId: -1,
-      visibleCreateNote: false,
-      visibleCreateNote: false,
-      visibleEditFolder: false,
-      visibleEditNote: false,
       visibleImageEditor: false,
       currEditor: "",
       noteContent: "",
+      showAlert: false,
+      alertMessage: "Заметка сохранена",
     };
   },
   methods: {
-    myExport(editor) {
-      ExportPDF(editor);
+    showNotification() {
+      this.showAlert = true;
+      setTimeout(() => {
+        this.showAlert = false;
+      }, 3000);
     },
     openEditor(note) {
       this.selectedNote = note;
       this.editingNote = true;
       this.updateNoteContent();
     },
-    setActiveFolder(folder, currentFolderId) {
-      this.currentFolder = folder;
-      this.currentFolderId = folder ? currentFolderId : -1;
-      this.getNotesByFolder(currentFolderId);
-    },
-    setActiveSubFolder(folder, currentSubFolderId) {
-      this.currentSubFolder = folder;
-      this.currentSubFolderId = folder ? currentSubFolderId : -1;
-      this.getNotesByFolder(currentSubFolderId);
-    },
-    setActiveNote(note, id) {
-      this.currentNote = note;
-      this.currentNoteId = note ? id : -1;
-      this.updateNoteContent();
+    closeEditor(noteId) {
+      if (this.selectedNote.id === noteId) {
+        this.selectedNote = null;
+        this.editingNote = false;
+        console.log("закрыли редактор");
+      }
     },
     showDialogCreateFolder() {
       this.visibleCreateFolder = true;
-    },
-    showDialogCreateNote(folder) {
-      this.currentEditFolder = folder;
-      this.visibleCreateNote = true;
-    },
-    showDialogEditFolder(folder) {
-      this.currentEditFolder = folder;
-      this.visibleEditFolder = true;
-    },
-    showDialogEditNote(note) {
-      this.currentEditNote = note;
-      this.visibleEditNote = true;
     },
     showImageEditor() {
       this.visibleImageEditor = true;
@@ -360,95 +341,12 @@ export default {
           }
         });
     },
-    editFolder(folder) {
-      axios
-        .patch(`http://localhost:8080/folders?id=${folder.id}`, folder)
-        .then((response) => {
-          this.getFoldersByUser();
-          this.visibleEditFolder = false;
-          console.log(response.data);
-        })
-        .catch((error) => {
-          if (error.response) {
-            console.error("Response error:", error.response.data);
-          } else if (error.request) {
-            console.error("Request error:", error.request);
-          } else {
-            console.error("Error:", error.message);
-          }
-        });
-    },
     createFolder(folder) {
-      if (folder.name != "" && folder.name.length >= 3) {
-        axios
-          .post("http://localhost:8080/folders", folder)
-          .then((response) => {
-            this.getFoldersByUser();
-            this.visibleCreateFolder = false;
-            console.log(response.data);
-          })
-          .catch((error) => {
-            if (error.response) {
-              // Запрос был сделан, и сервер ответил кодом статуса, который выходит за пределы диапазона 2xx
-              console.error("Response error:", error.response.data);
-            } else if (error.request) {
-              // Запрос был сформирован, но ответ не был получен
-              console.error("Request error:", error.request);
-            } else {
-              // Произошла ошибка при настройке запроса
-              console.error("Error:", error.message);
-            }
-          });
-        this.visibleCreateFolder = false;
-      }
-    },
-    removeFolder(folder) {
       axios
-        .delete(`http://localhost:8080/folders?id=${folder.id}`)
+        .post("http://localhost:8080/folders", folder)
         .then((response) => {
           this.getFoldersByUser();
-          console.log(response.data);
-        })
-        .catch((error) => {
-          if (error.response) {
-            // Запрос был сделан, и сервер ответил кодом статуса, который выходит за пределы диапазона 2xx
-            console.error("Response error:", error.response.data);
-          } else if (error.request) {
-            // Запрос был сформирован, но ответ не был получен
-            console.error("Request error:", error.request);
-          } else {
-            // Произошла ошибка при настройке запроса
-            console.error("Error:", error.message);
-          }
-        });
-    },
-
-    getNotesByFolder(id) {
-      axios
-        .get(`http://localhost:8080/folders/${id}/notes`)
-        .then((response) => {
-          if (id === this.currentFolderId) {
-            this.notes = response.data;
-          } else {
-            this.subNotes = response.data;
-          }
-        })
-        .catch((error) => {
-          if (error.response) {
-            console.error("Response error:", error.response.data);
-          } else if (error.request) {
-            console.error("Request error:", error.request);
-          } else {
-            console.error("Error:", error.message);
-          }
-        });
-    },
-    createNote(note) {
-      axios
-        .post("http://localhost:8080/notes", note)
-        .then((response) => {
-          this.getNotesByFolder();
-          this.visibleCreateNote = false;
+          this.visibleCreateFolder = false;
           console.log(response.data);
         })
         .catch((error) => {
@@ -460,54 +358,18 @@ export default {
             console.error("Error:", error.message);
           }
         });
-    },
-    editNote(note) {
-      axios
-        .patch(`http://localhost:8080/notes?id=${note.id}`, note)
-        .then((response) => {
-          this.getNotesByFolder();
-          this.visibleEditNote = false;
-          console.log(response.data);
-        })
-        .catch((error) => {
-          if (error.response) {
-            console.error("Response error:", error.response.data);
-          } else if (error.request) {
-            console.error("Request error:", error.request);
-          } else {
-            console.error("Error:", error.message);
-          }
-        });
-    },
-    removeNote(note) {
-      axios
-        .delete(`http://localhost:8080/notes?id=${note.id}`)
-        .then((response) => {
-          this.getNotesByFolder();
-          console.log(response.data);
-        })
-        .catch((error) => {
-          if (error.response) {
-            console.error("Response error:", error.response.data);
-          } else if (error.request) {
-            console.error("Request error:", error.request);
-          } else {
-            console.error("Error:", error.message);
-          }
-        });
+      this.visibleCreateFolder = false;
     },
     async sendData() {
+      this.showNotification();
       const encode = await this.convertAndZip(this.noteContent);
-      const data = {
-        id: this.currentNote.id,
-        title: this.currentNote.title,
-        content: encode,
-        folder_id: this.currentNote.folder_id,
-      };
+      this.selectedNote.content = encode;
       await axios
-        .patch(`http://localhost:8080/notes?id=${data.id}`, data)
+        .patch(
+          `http://localhost:8080/notes?id=${this.selectedNote.id}`,
+          this.selectedNote
+        )
         .then((response) => {
-          this.getNotesByFolder();
           this.visibleEditNote = false;
           console.log(response.data);
         })
@@ -521,7 +383,6 @@ export default {
           }
         });
     },
-
     async convertAndZip(noteHTML) {
       try {
         // 1. Конвертировать HTML в Markdown
@@ -598,14 +459,6 @@ export default {
       return message; // Для других браузеров
     },
   },
-  // computed: {
-  //   parentFolders() {
-  //     return this.folders.filter((folder) => folder.parentId == null);
-  //   },
-  //   subFolders() {
-  //     return this.folders.filter((folder) => folder.parentId !== null);
-  //   },
-  // },
   mounted() {
     this.getFoldersByUser();
     this.sizeWidth = window.innerWidth - (25 * window.innerWidth) / 100;
@@ -639,27 +492,6 @@ export default {
   height: 100vh; /* Также задаем высоту на всю высоту экрана для основного содержимого */
   width: 80vw;
 }
-.folderItem {
-  /* border: 2px solid #343a40; */
-  /* width: 90%; */
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  position: static;
-  margin: 5px;
-}
-.subFolderItem {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  position: static;
-  margin: 5px;
-  width: 98%;
-}
-.folder-name {
-  cursor: pointer;
-}
-
 #btn-add-folder {
   border: 1px solid #488acc;
   border-radius: 3px;
@@ -671,18 +503,20 @@ export default {
 .mdi {
   margin-left: 8px;
 }
-/* .folderItem.active {
-  background-color: #00ff66;
-  color: white;
-} */
+ul {
+  list-style-type: none;
+  padding-left: 0rem;
+}
 .underlined {
   text-decoration: underline;
-}
-.noteItem {
-  list-style-type: none;
 }
 #sample {
   width: 92%;
   height: 100%;
+}
+.alert-container {
+  position: fixed;
+  bottom: 20px; /* Отступ от нижней части экрана */
+  z-index: 1000;
 }
 </style>
