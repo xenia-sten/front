@@ -23,182 +23,6 @@
               ></Folder>
             </li>
           </ul>
-
-          <!-- <ul class="" v-if="folders.length > 0" style="padding-left: 0rem">
-            <li
-              class="folderItem"
-              :class="{ active: folder.id == currentFolderId }"
-              v-for="folder in parentFolders"
-              :key="folder.id"
-              @click.stop="setActiveFolder(folder, folder.id)"
-            >
-              <my-dialog v-model:show="visibleEditFolder">
-                <folder-edit-form
-                  :folder="currentEditFolder"
-                  @edit="editFolder"
-                />
-              </my-dialog>
-              <my-dialog v-model:show="visibleCreateNote">
-                <note-create-form
-                  :folder="currentEditFolder"
-                  @create="createNote"
-                />
-              </my-dialog>
-              <div class="d-flex flex-column" style="width: 100%">
-                <div class="d-flex flex-row justify-content-between">
-                  <span
-                    :class="{ underlined: folder.id == currentFolderId }"
-                    class="folder-name"
-                  >
-                    {{ folder.name }}
-                  </span>
-                  <div class="d-flex">
-                    <button
-                      class="mdi mdi-plus"
-                      title="Добавить заметку"
-                      @click="showDialogCreateNote(folder)"
-                    ></button>
-                    <button
-                      class="mdi mdi-pencil"
-                      title="Редактировать"
-                      @click="showDialogEditFolder(folder)"
-                    ></button>
-                    <button
-                      class="mdi mdi-delete"
-                      title="Удалить"
-                      @click.stop="removeFolder(folder)"
-                    ></button>
-                  </div>
-                </div>
-                <div
-                  v-if="currentFolderId === folder.id"
-                  class="d-flex flex-column"
-                >
-                  <ul
-                    class=""
-                    v-if="folders.length > 0"
-                    style="padding-left: 1rem"
-                  >
-                    <li
-                      class="subFolderItem flex-column d-flex"
-                      :class="{ active: folder.id == currentSubFolderId }"
-                      v-for="folder in subFolders"
-                      :key="folder.id"
-                      @click.stop="setActiveSubFolder(folder, folder.id)"
-                    >
-                      <div
-                        class="d-flex flex-row justify-content-between"
-                        v-if="folder.parentId === currentFolder.id"
-                        style="width: 100%"
-                      >
-                        <span
-                          :class="{
-                            underlined: folder.id == currentSubFolderId,
-                          }"
-                          class="folder-name"
-                        >
-                          {{ folder.name }}
-                        </span>
-                        <div class="d-flex">
-                          <button
-                            class="mdi mdi-plus"
-                            title="Добавить заметку"
-                            @click="showDialogCreateNote(folder)"
-                          ></button>
-                          <button
-                            class="mdi mdi-pencil"
-                            title="Редактировать"
-                            @click="showDialogEditFolder(folder)"
-                          ></button>
-                          <button
-                            class="mdi mdi-delete"
-                            title="Удалить"
-                            @click.stop="removeFolder(folder)"
-                          ></button>
-                        </div>
-                      </div>
-                      <div v-if="currentSubFolderId === folder.id">
-                        <ul
-                          class=""
-                          v-if="subNotes.length > 0"
-                          style="padding-left: 0rem"
-                        >
-                          <li
-                            class="noteItem"
-                            :class="{ active: note.id == currentNoteId }"
-                            v-for="note in subNotes"
-                            :key="note.id"
-                            @click="setActiveNote(note, note.id)"
-                          >
-                            <my-dialog v-model:show="visibleEditNote">
-                              <note-edit-form
-                                :note="currentEditNote"
-                                @edit="editNote"
-                              />
-                            </my-dialog>
-                            <div
-                              class="d-flex flex-row justify-content-between"
-                            >
-                              {{ note.title }}
-                              <div class="d-flex">
-                                <button
-                                  class="mdi mdi-pencil"
-                                  title="Редактировать"
-                                  @click="showDialogEditNote(note)"
-                                ></button>
-                                <div class="d-flex">
-                                  <button
-                                    class="mdi mdi-delete"
-                                    title="Удалить"
-                                    @click.stop="removeNote(note)"
-                                  ></button>
-                                </div>
-                              </div>
-                            </div>
-                          </li>
-                        </ul>
-                      </div>
-                    </li>
-                  </ul>
-                </div>
-                <div v-if="currentFolderId === folder.id">
-                  <ul class="" v-if="notes.length > 0">
-                    <li
-                      class="noteItem"
-                      :class="{ active: note.id == currentNoteId }"
-                      v-for="note in notes"
-                      :key="note.id"
-                      @click="setActiveNote(note, note.id)"
-                    >
-                      <my-dialog v-model:show="visibleEditNote">
-                        <note-edit-form
-                          :note="currentEditNote"
-                          @edit="editNote"
-                        />
-                      </my-dialog>
-                      <div class="d-flex flex-row justify-content-between">
-                        {{ note.title }}
-                        <div class="d-flex">
-                          <button
-                            class="mdi mdi-pencil"
-                            title="Редактировать"
-                            @click="showDialogEditNote(note)"
-                          ></button>
-                          <div class="d-flex">
-                            <button
-                              class="mdi mdi-delete"
-                              title="Удалить"
-                              @click.stop="removeNote(note)"
-                            ></button>
-                          </div>
-                        </div>
-                      </div>
-                    </li>
-                  </ul>
-                </div>
-              </div>
-            </li>
-          </ul> -->
           <p v-else style="color: red">Список папок пуст</p>
         </div>
       </div>
@@ -269,6 +93,7 @@ import MyDialog from "../ui/MyDialog.vue";
 import Editor from "@tinymce/tinymce-vue";
 import ImageEditor from "../ImageEditor.vue";
 import Folder from "../Folder.vue";
+import apiClient from "../../apiClient";
 
 export default {
   components: {
@@ -364,6 +189,7 @@ export default {
       this.showNotification();
       const encode = await this.convertAndZip(this.noteContent);
       this.selectedNote.content = encode;
+      
       await axios
         .patch(
           `http://localhost:8080/notes?id=${this.selectedNote.id}`,
@@ -431,15 +257,14 @@ export default {
       this.visibleImageEditor = false;
       // this.currEditor.insertContent(`<img src=http://localhost:8080/notes/${this.currentNote.id}/image/9ea03f56-a0bd-46dc-8561-30c6e8f3d79f>`);
       axios
-        .post(`http://localhost:8080/notes/${this.currentNote.id}/image`, {
+        .post(`http://localhost:8080/notes/${this.selectedNote.id}/image`, {
           img: `${dataURL}`,
         })
         .then((response) => {
-          this.editNote(this.currentNote); // ??
           this.visibleImageEditor = false;
           console.log(response.data);
           this.currEditor.insertContent(
-            `<img src=http://localhost:8080/notes/${this.currentNote.id}/image/${response.data}>`
+            `<img src=http://localhost:8080/notes/${this.selectedNote.id}/image/${response.data}>`
           );
         })
         .catch((error) => {

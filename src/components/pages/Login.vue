@@ -15,7 +15,13 @@
         >
       </v-form>
     </v-sheet>
-    <v-alert v-if="showAlert" type="error" dismissible @input="showAlert" class="alert-container">
+    <v-alert
+      v-if="showAlert"
+      type="error"
+      dismissible
+      @input="showAlert"
+      class="alert-container"
+    >
       {{ alertMessage }}
     </v-alert>
   </div>
@@ -24,6 +30,7 @@
 <script>
 import axios from "axios";
 import { useAuthStore } from "../../store/authStore";
+import apiClient from "../../apiClient";
 
 export default {
   // eslint-disable-next-line vue/multi-word-component-names
@@ -47,14 +54,29 @@ export default {
     },
   },
   methods: {
-    login() {
+    getCsrfToken() {
+      // Получаем строку всех куков
+      const allCookies = document.cookie;
+
+      // Ищем куку с именем XSRF-TOKEN
+      const tokenMatch = allCookies.match(/XSRF-TOKEN=([^;]+)/);
+
+      // Возвращаем найденный токен или null, если кука не найдена
+      return tokenMatch ? decodeURIComponent(tokenMatch[1]) : null;
+    },
+    async login() {
       const authStore = useAuthStore();
       const data = {
         email: this.email,
         password: this.password,
       };
-      axios
-        .post("http://localhost:8080/auth/login", data)
+      await axios.get("http://localhost:8080/auth/csrf-token");
+      apiClient
+        .post("http://localhost:8080/auth/login", data, {
+          headers: {
+            "X-XSRF-TOKEN": this.getCsrfToken(),
+          },
+        })
         .then(() => {
           authStore.isAuthenticated = true;
           this.$router.push("/notes");
@@ -82,7 +104,7 @@ export default {
 </script>
 
 <style scoped>
-.alert-container{
+.alert-container {
   position: fixed;
   bottom: 20px; /* Отступ от нижней части экрана */
   z-index: 1000;
