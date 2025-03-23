@@ -228,8 +228,6 @@ export default {
 </script>
 
 <style scoped>
-.folderItem {
-}
 .folder-name {
   cursor: pointer;
 }

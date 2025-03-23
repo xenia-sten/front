@@ -3,31 +3,34 @@
     <v-sheet class="mx-auto mt-5" width="300">
       <v-form fast-fail @submit.prevent="submitForm">
         <v-text-field
-          v-model="username"
+          v-model="user.username"
           :rules="nameRules"
           label="Имя"
         ></v-text-field>
 
-        <v-text-field v-model="email" type="email" label="Email"></v-text-field>
+        <v-text-field v-model="user.email" type="email" label="Email"></v-text-field>
 
         <v-text-field
-          v-model="password"
+          v-model="user.password"
           :rules="passwordRules"
           type="password"
           label="Пароль"
         ></v-text-field>
 
         <v-text-field
-          v-model="confirmPassword"
+          v-model="user.confirmPassword"
           type="password"
           label="Повторить пароль"
         ></v-text-field>
 
-        <v-btn class="mt-2" type="submit" block :disabled="!isFormValid"
+        <v-btn class="mt-2" type="submit" block :disabled="!isFormValid && isDisable"
           >Отправить</v-btn
         >
       </v-form>
     </v-sheet>
+    <my-dialog :canClose="false" v-model:show="visibleVerifyForm">
+      <verify-email-form :user="this.user"/>
+    </my-dialog>
     <v-alert
       v-if="showAlert"
       type="error"
@@ -43,19 +46,25 @@
 <script>
 import axios from "axios";
 import { useAuthStore } from "../../store/authStore";
+import MyDialog from '../ui/MyDialog.vue';
+import VerifyEmailForm from '../VerifyEmailForm.vue';
 
 export default {
   // eslint-disable-next-line vue/multi-word-component-names
   name: "Register",
-  components: {},
+  components: {MyDialog, VerifyEmailForm},
   data() {
     return {
-      username: "",
-      email: "",
-      password: "",
-      confirmPassword: "",
+      user: {
+        username: "",
+        email: "",
+        password: "",
+        confirmPassword: "",
+      },
       showAlert: false,
       alertMessage: "",
+      isDisable: false,
+      visibleVerifyForm: false,
       nameRules: [
         (value) => {
           if (value?.length >= 3 && value?.length <= 30) return true;
@@ -74,16 +83,16 @@ export default {
     isFormValid() {
       const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       const usernameLengthValid =
-        this.username.length >= 3 && this.username.length <= 30;
+        this.user.username.length >= 3 && this.user.username.length <= 30;
       const passwordLengthValid =
-        this.password.length >= 6 && this.password.length <= 20;
+        this.user.password.length >= 6 && this.user.password.length <= 20;
 
       return (
-        this.username !== "" &&
-        this.email !== "" &&
-        this.password !== "" &&
-        this.confirmPassword !== "" &&
-        emailPattern.test(this.email) &&
+        this.user.username !== "" &&
+        this.user.email !== "" &&
+        this.user.password !== "" &&
+        this.user.confirmPassword !== "" &&
+        emailPattern.test(this.user.email) &&
         usernameLengthValid &&
         passwordLengthValid
       );
@@ -91,22 +100,19 @@ export default {
   },
   methods: {
     submitForm() {
-      const authStore = useAuthStore();
-      const data = {
-        username: this.username,
-        email: this.email,
-        password: this.password,
-        confirmPassword: this.confirmPassword,
-      };
+      // const authStore = useAuthStore();
+      this.isDisable = true;
       axios
-        .post("http://localhost:8080/auth/register", data)
+        .post("http://localhost:8080/auth/register", this.user)
         .then((response) => {
           console.log("Успех:", response.data);
-          authStore.isAuthenticated = true;
-          this.$router.push("/notes");
+          // authStore.isAuthenticated = true;
+          // this.$router.push("/notes");
+          this.setVerifyEmailForm();
         })
         .catch((error) => {
           if (error.response) {
+            this.isDisable = false;
             console.error("Response error:", error.response.data.errors[0]);
             this.alertMessage = error.response.data.errors[0];
             this.showNotification();
@@ -122,6 +128,9 @@ export default {
       setTimeout(() => {
         this.showAlert = false;
       }, 3000);
+    },
+    setVerifyEmailForm(){
+      this.visibleVerifyForm = true;
     },
   },
 };

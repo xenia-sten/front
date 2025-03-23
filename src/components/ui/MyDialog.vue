@@ -1,6 +1,7 @@
 <template>
-  <div class="dialog" v-if="show" @click.self="hideDialog">
+  <div class="dialog" v-if="show">
     <div class="dialog__content">
+      <button v-if="canClose" class="close-btn" @click="hideDialog">✖️</button>
       <slot></slot>
     </div>
   </div>
@@ -14,10 +15,16 @@ export default {
       type: Boolean,
       default: false,
     },
+    canClose: {
+      type: Boolean,
+      default: true,
+    },
   },
   methods: {
     hideDialog() {
-      this.$emit("update:show", false);
+      if (this.canClose) {
+        this.$emit("update:show", false);
+      }
     },
   },
 };
@@ -45,5 +52,14 @@ export default {
   display: flex;
   flex-direction: column;
   align-items: center;
+}
+.close-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: transparent;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
 }
 </style>
